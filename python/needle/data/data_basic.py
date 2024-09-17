@@ -21,13 +21,15 @@ class Dataset:
 
     def __len__(self) -> int:
         raise NotImplementedError
-    
+
     def apply_transforms(self, x):
         if self.transforms is not None:
             # apply the transforms
             for tform in self.transforms:
                 x = tform(x)
         return x
+
+
 
 
 class DataLoader:
@@ -40,7 +42,7 @@ class DataLoader:
             (default: ``1``).
         shuffle (bool, optional): set to ``True`` to have the data reshuffled
             at every epoch (default: ``False``).
-     """
+    """
     dataset: Dataset
     batch_size: Optional[int]
 
@@ -55,17 +57,38 @@ class DataLoader:
         self.shuffle = shuffle
         self.batch_size = batch_size
         if not self.shuffle:
-            self.ordering = np.array_split(np.arange(len(dataset)), 
-                                           range(batch_size, len(dataset), batch_size))
+            # see https://numpy.org/doc/stable/reference/generated/numpy.array_split.html
+            self.ordering = np.array_split(
+                np.arange(len(dataset)), range(batch_size, len(dataset), batch_size)
+            )
 
     def __iter__(self):
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        if self.shuffle:
+            # reference: https://numpy.org/doc/stable/reference/random/generated/numpy.random.permutation.html
+            ordering = np.random.permutation(len(self.dataset))
+            self.ordering = np.array_split(ordering,
+                                           range(self.batch_size,
+                                                 len(ordering),
+                                                 self.batch_size))
+        self.num_iter = 0
         ### END YOUR SOLUTION
         return self
 
     def __next__(self):
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        tensorify = lambda X : Tensor(X, dtype=X.dtype,
+                                         requires_grad=False)
+        try:
+            batch_idx = self.ordering[self.num_iter]
+        except IndexError:
+            raise StopIteration
+        else:
+            self.num_iter += 1
+            batch = self.dataset[batch_idx]
+            return tuple(map(tensorify, batch))
         ### END YOUR SOLUTION
+
+
+
 
